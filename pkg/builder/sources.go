@@ -1,6 +1,7 @@
 package builder
 
 import (
+	"crypto/tls"
 	"fmt"
 	"github.com/nuclio/logger"
 	"github.com/v3io/xcp/backends"
@@ -8,7 +9,9 @@ import (
 	"github.com/v3io/xcp/operators"
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
-	"gopkg.in/src-d/go-git.v4/plumbing/transport/http"
+	"gopkg.in/src-d/go-git.v4/plumbing/transport/client"
+	githttp "gopkg.in/src-d/go-git.v4/plumbing/transport/http"
+	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -151,7 +154,7 @@ func (g *GitSource) Download() error {
 	}
 
 	if g.cfg.Password != "" {
-		opts.Auth = &http.BasicAuth{Username: g.cfg.User, Password: g.cfg.Password}
+		opts.Auth = &githttp.BasicAuth{Username: g.cfg.User, Password: g.cfg.Password}
 	}
 	g.codePath = filepath.Join(g.cfg.LocalPath, g.subpath)
 	r, err := git.PlainClone(g.cfg.LocalPath, false, &opts)
@@ -161,6 +164,18 @@ func (g *GitSource) Download() error {
 	ref, err := r.Head()
 	fmt.Printf("cloned repo %s, %s\n", ref.Name(), ref.Hash())
 	return err
+}
+
+// NewService initializes a new service.
+func NewService() {
+	httpsCli := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		},
+		Timeout: 300 * time.Second,
+	}
+
+	client.InstallProtocol("https", githttp.NewClient(httpsCli))
 }
 
 func SplitUrl(url string) (path, branch, subdir string) {

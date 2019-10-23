@@ -13,7 +13,7 @@ import (
 const (
 	functionEnvVar   = "MLRUN_FUNCTION_SPEC"
 	defaultBaseImage = "python:3.6"
-	mlrunPackage     = "pip install mlrun"
+	mlrunPackage     = "mlrun"
 )
 
 type Opts struct {
@@ -68,7 +68,11 @@ func writeDockerfile(codePath string, function *common.Function) error {
 		image = build.BaseImage
 	}
 	cmds := build.Commands
-	cmds = append(cmds, mlrunPackage)
+	pkgPath, valid := os.LookupEnv("MLRUN_PACKAGE_PATH")
+	if !valid {
+		pkgPath = mlrunPackage
+	}
+	cmds = append(cmds, "pip install "+pkgPath)
 	dock := fmt.Sprintf("FROM %s\nWORKDIR /run\n", image)
 	dock += fmt.Sprintf("ADD %s /run\n", codePath)
 	for _, cmd := range cmds {
